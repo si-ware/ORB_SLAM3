@@ -177,6 +177,22 @@ public:
     std::vector<MapPoint*> GetTrackedMapPoints();
     std::vector<cv::KeyPoint> GetTrackedKeyPointsUn();
 
+    // A single keyframe pose in the current (active) map. Twc is the camera pose
+    // (camera-in-world), matching the pose returned by TrackMonocular().inverse().
+    struct KeyframePose {
+        long unsigned int id;
+        double timestamp;
+        Sophus::SE3f Twc;
+    };
+
+    // Number of keyframes in the current active map. Cheap; safe to poll per frame.
+    size_t GetNumKeyframes();
+
+    // Snapshot of every (good) keyframe pose in the current active map, sorted by id.
+    // Poses reflect the latest optimisation (local BA, loop closure, global BA).
+    // Read under the map-update mutex for a consistent snapshot.
+    std::vector<KeyframePose> GetKeyframeTrajectory();
+
     // For debugging
     double GetTimeFromIMUInit();
     bool isLost();

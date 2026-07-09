@@ -1,7 +1,14 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.5)
 SET(CMAKE_LEGACY_CYGWIN_WIN32 0)
 
 PROJECT(g2o)
+
+# Pin to C++14 to match ORB_SLAM3. A mismatch (e.g. g2o defaulting to gnu++17
+# while ORB_SLAM3 is c++14) makes the two disagree on C++17 aligned operator
+# new for Eigen-containing vertex types, so vertices allocated in ORB_SLAM3 and
+# freed in g2o use mismatched allocators -> heap corruption ("double free").
+SET(CMAKE_CXX_STANDARD 14)
+SET(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 SET(g2o_C_FLAGS)
 SET(g2o_CXX_FLAGS)

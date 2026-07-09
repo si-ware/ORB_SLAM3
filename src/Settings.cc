@@ -28,6 +28,9 @@
 
 #include <iostream>
 
+#include <cstdio>
+#include <fstream>
+
 using namespace std;
 
 namespace ORB_SLAM3 {
@@ -127,7 +130,7 @@ namespace ORB_SLAM3 {
     Settings::Settings(const std::string &configFile, const int& sensor) :
     bNeedToUndistort_(false), bNeedToRectify_(false), bNeedToResize1_(false), bNeedToResize2_(false) {
         sensor_ = sensor;
-
+	
         //Open settings file
         cv::FileStorage fSettings(configFile, cv::FileStorage::READ);
         if (!fSettings.isOpened()) {
@@ -141,7 +144,8 @@ namespace ORB_SLAM3 {
         }
 
         //Read first camera
-        readCamera1(fSettings);
+	cout << "Calling read image info" << endl;
+	readCamera1(fSettings);
         cout << "\t-Loaded camera 1" << endl;
 
         //Read second camera if stereo (not rectified)
@@ -354,15 +358,23 @@ namespace ORB_SLAM3 {
     }
 
     void Settings::readImageInfo(cv::FileStorage &fSettings) {
-        bool found;
+      bool found;
         //Read original and desired image dimensions
         int originalRows = readParameter<int>(fSettings,"Camera.height",found);
-        int originalCols = readParameter<int>(fSettings,"Camera.width",found);
-        originalImSize_.width = originalCols;
+	int originalCols = readParameter<int>(fSettings,"Camera.width",found);
+	std::cout << "[DEBUG] Camera.width=" << originalCols
+		  << ", Camera.height=" << originalRows
+		  << " (found=" << (found ? "true" : "false") << ")\n";
+
+	originalImSize_.width = originalCols;
         originalImSize_.height = originalRows;
 
         newImSize_ = originalImSize_;
         int newHeigh = readParameter<int>(fSettings,"Camera.newHeight",found,false);
+	std::cout << "[DEBUG] Camera.newHeight found=" << (found ? "true" : "false");
+	/*if (found) std::cout << " value=" << newHeigh;
+	  std::cout << std::endl;*/
+
         if(found){
             bNeedToResize1_ = true;
             newImSize_.height = newHeigh;
@@ -382,6 +394,10 @@ namespace ORB_SLAM3 {
         }
 
         int newWidth = readParameter<int>(fSettings,"Camera.newWidth",found,false);
+	std::cout << "[DEBUG] Camera.newWidth found=" << (found ? "true" : "false");
+	if (found) std::cout << " value=" << newWidth;
+	std::cout << std::endl;
+	
         if(found){
             bNeedToResize1_ = true;
             newImSize_.width = newWidth;
@@ -409,6 +425,11 @@ namespace ORB_SLAM3 {
 
         fps_ = readParameter<int>(fSettings,"Camera.fps",found);
         bRGB_ = (bool) readParameter<int>(fSettings,"Camera.RGB",found);
+	/*std::cout << "[DEBUG] Final sizes: original="
+		  << originalImSize_.width << "x" << originalImSize_.height
+		  << "  new=" << newImSize_.width << "x" << newImSize_.height
+		  << "  needToResize=" << (bNeedToResize1_ ? "true" : "false")
+		  << std::endl;*/
     }
 
     void Settings::readIMU(cv::FileStorage &fSettings) {
@@ -429,6 +450,7 @@ namespace ORB_SLAM3 {
         else{
             insertKFsWhenLost_ = true;
         }
+		cout << "[DEBUG] mInsertKFsLost = " << insertKFsWhenLost_ << endl; // jamal
     }
 
     void Settings::readRGBD(cv::FileStorage& fSettings) {

@@ -67,6 +67,7 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
         cout << "RGB-D-Inertial" << endl;
 
     //Check settings file
+    cout << "Checking file" << endl; //jamal
     cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {
@@ -198,8 +199,16 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     mpLocalMapper->mInitFr = initFr;
     if(settings_)
         mpLocalMapper->mThFarPoints = settings_->thFarPoints();
+    // jamal
     else
-        mpLocalMapper->mThFarPoints = fsSettings["thFarPoints"];
+      //mpLocalMapper->mThFarPoints = fsSettings["thFarPoints"];
+      mpLocalMapper->mThFarPoints = fsSettings["System.thFarPoints"];
+
+    //jamal
+    cout << "[DEBUG] settings_ is " << (settings_ ? "NOT null" : "NULL") << endl;
+    cout << "[DEBUG] mThFarPoints loaded as: " << mpLocalMapper->mThFarPoints << endl;
+    cout << "[DEBUG] mbFarPoints will be: " << (mpLocalMapper->mThFarPoints!=0 ? "true" : "false") << endl;
+
     if(mpLocalMapper->mThFarPoints!=0)
     {
         cout << "Discard points further than " << mpLocalMapper->mThFarPoints << " m from current camera" << endl;
@@ -415,7 +424,7 @@ Sophus::SE3f System::TrackMonocular(const cv::Mat &im, const double &timestamp, 
     if(settings_ && settings_->needToResize()){
         cv::Mat resizedIm;
         cv::resize(im,resizedIm,settings_->newImSize());
-        imToFeed = resizedIm;
+	imToFeed = resizedIm;
     }
 
     // Check mode change
@@ -1334,6 +1343,37 @@ vector<cv::KeyPoint> System::GetTrackedKeyPointsUn()
 {
     unique_lock<mutex> lock(mMutexState);
     return mTrackedKeyPointsUn;
+}
+
+size_t System::GetNumKeyframes()
+{
+    Map* pMap = mpAtlas->GetCurrentMap();
+    return pMap ? pMap->KeyFramesInMap() : 0;
+}
+
+vector<System::KeyframePose> System::GetKeyframeTrajectory()
+{
+    vector<KeyframePose> out;
+    Map* pMap = mpAtlas->GetCurrentMap();
+    if(!pMap)
+        return out;
+
+    // Lock the map so we read a consistent snapshot even while global BA
+    // (running in the loop-closing thread) is rewriting keyframe poses.
+    unique_lock<mutex> lock(pMap->mMutexMapUpdate);
+
+    vector<KeyFrame*> vpKFs = pMap->GetAllKeyFrames();
+    sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
+
+    out.reserve(vpKFs.size());
+    for(KeyFrame* pKF : vpKFs)
+    {
+        if(!pKF || pKF->isBad())
+            continue;
+        // Camera pose (camera-in-world), matching TrackMonocular().inverse().
+        out.push_back({pKF->mnId, pKF->mTimeStamp, pKF->GetPoseInverse()});
+    }
+    return out;
 }
 
 double System::GetTimeFromIMUInit()
